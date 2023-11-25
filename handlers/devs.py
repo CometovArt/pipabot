@@ -43,9 +43,10 @@ async def info(client, message):
     
     text = (
         f'**PIPA**\n\n'
-        f'Контакт автора: @CometovArt\n\n'
         f'Исходный код:\n'
-        f'https://github.com/CometovArt/pipabot'
+        f'https://github.com/CometovArt/pipabot\n\n'
+        f'Контакт автора: @CometovArt\n'
+        f'https://boosty.to/cometovart'
     )
     
     await message.reply_text(text)
