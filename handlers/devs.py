@@ -37,6 +37,20 @@ async def dev_download(client, message):
     message.stop_propagation()
     
     
+@pipabot.on_message(filters.command('info'))
+async def info(client, message):
+    '''Отправляет информацию о боте'''
+    
+    text = (
+        f'**PIPA**\n\n'
+        f'Контакт автора: @CometovArt\n\n'
+        f'Исходный код:\n'
+        f'https://github.com/CometovArt/pipabot'
+    )
+    
+    await message.reply_text(text)
+    
+    
 @pipabot.on_message(filters.command('dark'))
 async def dev_dark_side(client, message):
     '''Заготовка для перевода пипы на тёмную сторону'''
