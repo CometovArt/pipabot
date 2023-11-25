@@ -86,7 +86,7 @@ async def check_khaleesi(client, message):
         
 @pipabot.on_message(filters.regex('/dick@Dickfindbot'), group=303)
 async def check_dickbot(client, message):
-    '''Отправляет редкое сообщение с золотым Поднебесным'''
+    '''Отправляет редкое сообщение на дикбота'''
     
     if random.random() < rare_chance: 
         await message.reply_photo(photo='https://i1.sndcdn.com/artworks-J8HHeKmSxBfHO6jd-zRH7Qg-t500x500.jpg')
@@ -108,7 +108,7 @@ async def check_emoji(client, message):
         
 @pipabot.on_message(group=305)
 async def check_wat(client, message):
-    '''Отправляет редкое сообщение с золотым Поднебесным'''
+    '''Отправляет редкое сообщение с упоротым хлебом'''
     
     if random.random() < rare_chance:  
         await message.reply_animation(animation='CgACAgQAAxkBAAILfWVhCIKUKXltMNcFBmIZnXYIxni8AAL5AgAC9aIlU7GzxFg7V2j3HgQ')
