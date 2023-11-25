@@ -1,7 +1,7 @@
 # Хэндлер предназначен для простых ответов бота на слова-триггеры
 
 from pyrogram import filters
-from config import pipabot, chance, big_chance, rare_chance
+from config import pipabot, chance, big_chance, rare_chance, logger
 
 import random
 import asyncio
@@ -17,7 +17,7 @@ async def check_da(client, message):
     '''Отвечает «ПИЗДА» на «ДА»'''
     
     if random.random() < chance:
-        await message.reply_text(text='ПИЗДА', quote_text=message.matches[0].group(0))
+        await message.reply_text(text='ПИЗДА', quote_text=message.matches[0].group(0) if message.matches else None)
 
 
 @pipabot.on_message(
@@ -27,7 +27,7 @@ async def check_net(client, message):
     '''Отвечает «ГОМОСЕКСУАЛЬНЫЙ ОТВЕТ» на «НЕТ»'''
     
     if random.random() < chance:
-        await message.reply_text(text='ГОМОСЕКСУАЛЬНЫЙ ОТВЕТ', quote_text=message.matches[0].group(0))
+        await message.reply_text(text='ГОМОСЕКСУАЛЬНЫЙ ОТВЕТ', quote_text=message.matches[0].group(0) if message.matches else None)
         
         
 @pipabot.on_message(
@@ -38,7 +38,7 @@ async def check_net(client, message):
 async def check_haha(client, message):
     '''Отвечает «BENIS» на «ХЕХЕ»'''
     
-    await message.reply_text(text='BENIS', quote_text=message.matches[0].group(0))
+    await message.reply_text(text='BENIS', quote_text=message.matches[0].group(0) if message.matches else None)
     
     
 @pipabot.on_message(
@@ -48,7 +48,7 @@ async def check_utro(client, message):
     '''Отвечает «ХУЮТРО» на «УТРО»'''
     
     if random.random() < big_chance:
-        await message.reply_text(text='ХУЮТРО', quote_text=message.matches[0].group(0))
+        await message.reply_text(text='ХУЮТРО', quote_text=message.matches[0].group(0) if message.matches else None)
             
     
 @pipabot.on_message(
@@ -57,7 +57,7 @@ async def check_utro(client, message):
 async def check_pipa(client, message):
     '''Отвечает «PIPA» на «ПИПА»'''
     
-    await message.reply_text(text='PIPA', quote_text=message.matches[0].group(0))  
+    await message.reply_text(text='PIPA', quote_text=message.matches[0].group(0) if message.matches else None)  
         
     
 @pipabot.on_message(
@@ -67,7 +67,7 @@ async def check_pizda(client, message):
     '''Отвечает «ДА» на «ПИЗДА»'''
     
     if random.random() < chance:
-        await message.reply_text(text='ДА', quote_text=message.matches[0].group(0))   
+        await message.reply_text(text='ДА', quote_text=message.matches[0].group(0) if message.matches else None)   
             
     
 @pipabot.on_message(
@@ -77,7 +77,7 @@ async def check_huynya(client, message):
     '''Отвечает «САМ ТАКОЙ» на «ХУЙНЯ»'''
     
     if random.random() < big_chance:
-        await message.reply_text(text='САМ ТАКОЙ', quote_text=message.matches[0].group(0))   
+        await message.reply_text(text='САМ ТАКОЙ', quote_text=message.matches[0].group(0) if message.matches else None)   
             
     
 @pipabot.on_message(
@@ -89,7 +89,7 @@ async def check_seks(client, message):
     if random.random() < big_chance:  
         await message.reply_sticker(
             sticker='CAACAgIAAx0CX9oyXQABBzs7ZRV5LVCgtuDLu6dyQiL_yy64xYAAAlYxAALrvNhJA7YZxBeOmCUeBA',
-            quote_text=message.matches[0].group(0)
+            quote_text=message.matches[0].group(0) if message.matches else None
         )
     
     
@@ -101,7 +101,7 @@ async def check_kvas(client, message):
     
     await message.reply_animation(
         animation='CgACAgQAAx0CX9oyXQABCWmFZWEAAYaXf6qCwYhWGUwLK4n8SxwrAALQAwACsJcUUsyHX0ivKs-pHgQ', 
-        quote_text=message.matches[0].group(0)
+        quote_text=message.matches[0].group(0) if message.matches else None
     )
     
     
@@ -118,7 +118,7 @@ async def check_puk(client, message):
     elif random.random() < rare_chance:
         await message.reply_animation(
             animation='CgACAgIAAx0CX9oyXQABCVrIZV9VMwHWMEvPkswUH7z6Qxm-3kIAAmI2AAIkTAFL0i_g8g3_Fk4eBA',
-            quote_text=message.matches[0].group(0)
+            quote_text=message.matches[0].group(0) if message.matches else None
         )
     else:
         await message.reply_text(text='ПУК')    
@@ -148,7 +148,7 @@ async def check_halsin(client, message):
     
     texts = ['МОЙ ЛЮБИМЫЙ МИШКА 🧸', 'ХАЛЬСИНЧИК 👉👈', 'ХАЛЬСИН Т-Т-Т-Т-Т-ТРАХАТЬ 🐻🐻🐻']
     text = random.choice(texts)
-    await message.reply_text(text=text, quote_text=message.matches[0].group(0))
+    await message.reply_text(text=text, quote_text=message.matches[0].group(0) if message.matches else None)
     
     
 @pipabot.on_message(
@@ -160,7 +160,7 @@ async def check_dumaem(client, message):
     if random.random() < rare_chance:  
         await message.reply_animation(
             animation='CgACAgIAAxkBAAIGU2Uidj3DNHsCX9nfcSkouc7pEyRaAALdKwACUhPwSaMHg0aOsJqGHgQ', 
-            quote_text=message.matches[0].group(0)
+            quote_text=message.matches[0].group(0) if message.matches else None
         )
         
         
@@ -172,7 +172,7 @@ async def check_spooky(client, message):
     
     await message.reply_animation(
         animation='CgACAgQAAxkBAAIHEGUio6KkdJBP_pmt68QLI9Vv3sZrAALuAgACN5ANUyMp7ayFOkCeHgQ', 
-        quote_text=message.matches[0].group(0)
+        quote_text=message.matches[0].group(0) if message.matches else None
     )
     
     
@@ -184,7 +184,7 @@ async def check_trah(client, message):
     
     await message.reply_animation(
         animation='CgACAgIAAxkBAAIH_WUlCgvTwwRQB0il74UF0wSjAAGhhQACgjQAAoB-KUn0xaf3T4n8dB4E', 
-        quote_text=message.matches[0].group(0)
+        quote_text=message.matches[0].group(0) if message.matches else None
     )
     
     
@@ -231,9 +231,9 @@ async def check_smertb(client, message):
 async def check_master(client, message):
     '''Отвечает на «МАСТЕР»'''
     
-    await message.reply_text(text='ДАНЖЕН МАСТЕР', quote_text=message.matches[0].group(0))
+    await message.reply_text(text='ДАНЖЕН МАСТЕР', quote_text=message.matches[0].group(0) if message.matches else None)
     await asyncio.sleep(3)
-    await message.reply_text(text='SLAAAAAAVES', quote_text=message.matches[0].group(0))
+    await message.reply_text(text='SLAAAAAAVES', quote_text=message.matches[0].group(0) if message.matches else None)
     
     
 @pipabot.on_message(
@@ -242,7 +242,7 @@ async def check_master(client, message):
 async def check_astarion(client, message):
     '''Отвечает на «АСТАРИОН»'''
     
-    await message.reply_text(text='ВОТ БЫ ХУЙ МНЕ ВСТАВИЛ ОН', quote_text=message.matches[0].group(0))
+    await message.reply_text(text='ВОТ БЫ ХУЙ МНЕ ВСТАВИЛ ОН', quote_text=message.matches[0].group(0) if message.matches else None)
     
     
 @pipabot.on_message(
@@ -253,5 +253,5 @@ async def check_kva(client, message):
     
     await message.reply_animation(
         animation='CgACAgQAAx0CX9oyXQABCWm0ZWEDhh79ExGdmolERrrvNLzm_1QAAswCAAIn7A1TNYVJlisMcv0eBA', 
-        quote_text=message.matches[0].group(0)
+        quote_text=message.matches[0].group(0) if message.matches else None
     )
