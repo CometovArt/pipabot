@@ -1,4 +1,4 @@
-![PIPA](https://github.com/CometovArt/repository/raw/main/pipa.png)
+![PIPA](https://github.com/CometovArt/pipabot/blob/main/pipa.png)
 
 ### PIPA
 https://t.me/pipagufipabot
