@@ -1,7 +1,7 @@
 # Хэндлер предназначен для ответов бота с помощью нейросети
 
 from pyrogram import filters, enums
-from config import pipabot
+from config import pipabot, logger
 from tokens import openai_key_list
 
 import re
@@ -29,15 +29,12 @@ async def openai_answer(client, message):
         — пипа [слово триггер] <запрос>
     '''
     
-    # Задаём пипе характер с помощью препромта
-    prepromt = 'Ответь так, как будто ты персонаж PIPA, который немного туповат и пытается пошутить: '
-    
     # Передаём нейронке сам запрос с текстом пользователя. 
     # Понижение регистра немного уменьшает ошибки при ответе, хз почему
     user_text = message.text.lower()
 
     # Получаем ответ от нейронки
-    text = await openai_response(message=message, promt=prepromt+user_text)
+    text = await openai_response(message=message, promt=user_text)
 
     # Отправляем ответ юзеру, предварительно
     await message.reply_text(text.upper())
@@ -46,16 +43,13 @@ async def openai_answer(client, message):
     message.stop_propagation()
     
 
-@pipabot.on_message(filters.regex('\?') & filters.reply | filters.regex('[пП]родолжи') & filters.reply)
+@pipabot.on_message(filters.regex('\?') & filters.reply & ~filters.regex('[пПpP][иИiI][пПpP][аАыЫуУaA]') | filters.regex('[пП]родолжи') & filters.reply)
 async def openai_reply(client, message):
     '''Отвечает на вопрос с помощью нейронки, если это реплай боту. Учитывает контекст сообщения в реплае'''
 
     # Игнорируем сообщение, если реплай сделан не боту
     if message.reply_to_message.from_user != await pipabot.get_me():
         return
-    
-    # Задаём пипе характер с помощью препромта
-    prepromt = 'Ответь так, как будто ты персонаж PIPA, который немного туповат и пытается пошутить: '
     
     # Передаём нейронке контекст из предыдущего сообщения
     # Чтобы уменьшить ошибки при ответе убираем все строки из сообщения
@@ -66,7 +60,7 @@ async def openai_reply(client, message):
     user_text = message.text.lower()
     
     # Получаем ответ от нейронки
-    text = await openai_response(message, prepromt+context.lower()+user_text)
+    text = await openai_response(message, context=context.lower(), promt=user_text)
 
     # Отправляем ответ юзеру, предварительно
     await message.reply_text(text.upper())
@@ -75,8 +69,33 @@ async def openai_reply(client, message):
     message.stop_propagation()
     
     
-async def openai_response(message, promt):
+@pipabot.on_message(filters.regex('[пПpP][иИiI][пПpP][аАыЫуУaA]') & filters.regex('\?') & filters.reply)
+async def openai_reply_pipa(client, message):
+    '''Отвечает на вопрос с помощью нейронки, если это реплай с упоминанием Пипы. Учитывает контекст сообщения в реплае'''
+    
+    # Передаём нейронке контекст из предыдущего сообщения
+    # Чтобы уменьшить ошибки при ответе убираем все строки из сообщения
+    context = re.sub(r'\n', ' ', message.reply_to_message.text or message.reply_to_message.caption)
+    
+    # Передаём нейронке сам запрос с текстом пользователя
+    # Понижение регистра немного уменьшает ошибки при ответе
+    user_text = message.text.lower()
+    
+    # Получаем ответ от нейронки
+    text = await openai_response(message, context=context.lower(), promt=user_text)
+
+    # Отправляем ответ юзеру, предварительно
+    await message.reply_text(text.upper())
+    
+    # Останавливаем отслеживание сообщения другими хендлерами
+    message.stop_propagation()
+    
+    
+async def openai_response(message, context=None, promt=None):
     '''Отправляет запрос в OpenAI'''
+    
+    # Задаём пипе характер с помощью препромта
+    prepromt = 'Ответь так, как будто ты персонаж PIPA, который немного туповат и пытается пошутить: '
     
     # Отправляем в чат «PIPA печатает...»
     await pipabot.send_chat_action(message.chat.id, enums.ChatAction.TYPING)
@@ -97,7 +116,7 @@ async def openai_response(message, promt):
             # Модель text-davinci-003 лучше всего подходит для тупых ответов PIP'ы
             response = openai.Completion.create(
                 model='text-davinci-003',
-                prompt=promt,
+                prompt=prepromt + context if context else '' + promt,
                 temperature=0, 
                 max_tokens=500
             )
@@ -106,12 +125,25 @@ async def openai_response(message, promt):
             text = response.choices[0].text.upper()
             
             # Иногда text-davinci-003 отвечает пустым текстовым полем
-            # Чтобы не скипать сообщение пробуем получить ответ через 3.5
+            # Пробуем получить ответ без контекста
+            if text == '':
+                response = openai.Completion.create(
+                    model='text-davinci-003',
+                    prompt=prepromt + promt,
+                    temperature=0, 
+                    max_tokens=500
+                )
+                
+                # Вытаскием текст из респонза
+                text = response.choices[0].text.upper()
+            
+            # Если и с контекстом нейросеть отдаёт пустой результат, то
+            # чтобы не скипать сообщение пробуем получить ответ через 3.5
             if text == '':
                 response = await openai.ChatCompletion.acreate(
                     model='gpt-3.5-turbo',
                     temperature=1, 
-                    messages=[{ 'role':'user','content' : promt}],
+                    messages=[{ 'role':'user','content' : prepromt + context if context else '' + promt}],
                     max_tokens=500
                 )
                 
