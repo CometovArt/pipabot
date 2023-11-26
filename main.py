@@ -1,7 +1,7 @@
 from pyrogram import compose
 import asyncio
 
-from config import userbot, pipabot
+from config import userbot, pipabot, logger
 
 # Запускаем все хендлеры
 import handlers.brains
@@ -9,7 +9,6 @@ import handlers.devs
 import handlers.jokes
 import handlers.simples
 import handlers.specials
-
 
 
 # Стартуем сессии ботов

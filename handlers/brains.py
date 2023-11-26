@@ -1,12 +1,16 @@
 # Хэндлер предназначен для ответов бота с помощью нейросети
 
 from pyrogram import filters, enums
+from pyrogram.errors import exceptions
+from pyrogram.types import (InlineQueryResultArticle, InputTextMessageContent,
+                            InlineKeyboardMarkup, InlineKeyboardButton)
 from config import pipabot, logger
 from tokens import openai_key_list
 
 import re
 import asyncio
 import openai
+import sqlite3 as sl
 
 
 
@@ -91,6 +95,60 @@ async def openai_reply_pipa(client, message):
     message.stop_propagation()
     
     
+@pipabot.on_inline_query()
+async def answer(client, inline_query):
+    lock = asyncio.Lock()
+    async with lock:
+        # await asyncio.sleep(5)
+        # logger.info(inline_query)
+        # await asyncio.sleep(5)
+        # Передаём нейронке сам запрос с текстом пользователя
+        # Понижение регистра немного уменьшает ошибки при ответе
+        user_id = inline_query.from_user.id
+        user_text = inline_query.query.lower()
+        
+        # logger.info(user_text)
+        if len(user_text) < 5:
+            return
+        
+        conn = sl.connect('./service/pipa.db')
+        cur = conn.cursor()
+        
+        # Попытка вставить строку, обновить, если ключ уже существует
+        cur.execute('''INSERT INTO cache (user_id, text)
+                    VALUES (?, ?)
+                    ON CONFLICT(user_id) DO UPDATE SET
+                    text = ?''',
+                (user_id, user_text, user_text))
+        conn.commit()
+        
+        await asyncio.sleep(3)
+        
+        cur.execute("""SELECT text FROM cache WHERE user_id = ? """,(user_id,))
+        result, = cur.fetchone()
+        logger.info(result)
+        logger.info(user_text)
+        
+        conn.close()
+        
+        if user_text == result:
+        
+            response = await openai_response(message=None, promt=user_text)
+            
+            await inline_query.answer(
+                results=[
+                    InlineQueryResultArticle(
+                        title="Пипафикация",
+                        input_message_content=InputTextMessageContent(
+                            response
+                        ),
+                        description="Ты ответишь: " + response,
+                    ),
+                ],
+                cache_time=1
+            )
+    
+    
 async def openai_response(message, context=None, promt=None):
     '''Отправляет запрос в OpenAI'''
     
@@ -98,7 +156,8 @@ async def openai_response(message, context=None, promt=None):
     prepromt = 'Ответь так, как будто ты персонаж PIPA, который немного туповат и пытается пошутить: '
     
     # Отправляем в чат «PIPA печатает...»
-    await pipabot.send_chat_action(message.chat.id, enums.ChatAction.TYPING)
+    if message:
+        await pipabot.send_chat_action(message.chat.id, enums.ChatAction.TYPING)
     
     # Задаём дэфолтный выбор openai ключа из списка
     # Когда будем получать ошибку RateLimitError ключ будет меняться
@@ -112,11 +171,13 @@ async def openai_response(message, context=None, promt=None):
         try:
             openai.api_key = openai_key_list[key_choice]
             
+            context = context if context else ''
+            
             # Пробуем получить ответ от openai
             # Модель text-davinci-003 лучше всего подходит для тупых ответов PIP'ы
             response = openai.Completion.create(
                 model='text-davinci-003',
-                prompt=prepromt + context if context else '' + promt,
+                prompt=prepromt + context + promt,
                 temperature=0, 
                 max_tokens=500
             )
@@ -137,18 +198,19 @@ async def openai_response(message, context=None, promt=None):
                 # Вытаскием текст из респонза
                 text = response.choices[0].text.upper()
             
-            # Если и с контекстом нейросеть отдаёт пустой результат, то
-            # чтобы не скипать сообщение пробуем получить ответ через 3.5
-            if text == '':
-                response = await openai.ChatCompletion.acreate(
-                    model='gpt-3.5-turbo',
-                    temperature=1, 
-                    messages=[{ 'role':'user','content' : prepromt + context if context else '' + promt}],
-                    max_tokens=500
-                )
+            # # Если и с контекстом нейросеть отдаёт пустой результат, то
+            # # чтобы не скипать сообщение пробуем получить ответ через 3.5
+            # if text == '':
+            #     response = await openai.ChatCompletion.acreate(
+            #         model='gpt-3.5-turbo',
+            #         temperature=0, 
+            #         messages=[{ 'role':'user','content' : prepromt + context if context else '' + promt}],
+            #         max_tokens=500
+            #     )
                 
-                # Вытаскием текст из респонза
-                text = response.choices[0].message.content
+            #     # Вытаскием текст из респонза
+            #     text = response.choices[0].message.content
+                
             
         except openai.error.RateLimitError:
             # Получив ошибку меняем ключ для следующего цикла
@@ -156,12 +218,13 @@ async def openai_response(message, context=None, promt=None):
             
             # Если все ключи перебраны, то ждём 30 секунд и начинаем сначала
             if key_choice > 4:
-                await asyncio.sleep(10)
-                await pipabot.send_chat_action(message.chat.id, enums.ChatAction.TYPING)
-                await asyncio.sleep(10)
-                await pipabot.send_chat_action(message.chat.id, enums.ChatAction.TYPING)
-                await asyncio.sleep(10)
-                await pipabot.send_chat_action(message.chat.id, enums.ChatAction.TYPING)
+                if message:
+                    await asyncio.sleep(10)
+                    await pipabot.send_chat_action(message.chat.id, enums.ChatAction.TYPING)
+                    await asyncio.sleep(10)
+                    await pipabot.send_chat_action(message.chat.id, enums.ChatAction.TYPING)
+                    await asyncio.sleep(10)
+                    await pipabot.send_chat_action(message.chat.id, enums.ChatAction.TYPING)
                 key_choice = 0
                 
     # Иногда нейросеть дописывает к запросу знаки, непонятно зачем. Убираем
