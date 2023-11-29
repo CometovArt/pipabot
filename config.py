@@ -35,12 +35,12 @@ pipabot = Client(
 
 # Юзербот парсинга каналов
 userbot = Client(
-    name='main', 
+    name='userbot', 
     api_id=api_id, 
     api_hash=api_hash, 
     phone_number=phone_number, 
     workdir='./service/sessions/',
-    no_updates=True
+    # no_updates=True
 )
 
 
