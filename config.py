@@ -1,5 +1,6 @@
 from tokens import api_id, api_hash, bot_token, phone_number
 from pyrogram import Client
+import uvloop
 
 
 # pymorphy2 используется для склонений при поиске шутеек
@@ -23,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 # Создаём объекты сессий
-
+uvloop.install()
 # Основной бот
 pipabot = Client(
     name='pipabot', 

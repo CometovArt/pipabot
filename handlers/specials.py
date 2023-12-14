@@ -2,12 +2,16 @@
 
 from pyrogram import filters
 from pyrogram.raw.types import UpdateChannelParticipant
-from config import pipabot, rare_chance
+from config import pipabot, rare_chance, logger
 
 import random
 
 from utils.khaleesi import Khaleesi
 
+
+@pipabot.on_deleted_messages(group=1000000)
+async def check_deletes(client, message):
+    logger.info(message)
 
 
 @pipabot.on_message(filters.new_chat_members)

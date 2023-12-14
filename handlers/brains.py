@@ -3,7 +3,7 @@
 from pyrogram import filters, enums
 from pyrogram.errors import exceptions
 from pyrogram.types import InlineQueryResultArticle, InputTextMessageContent
-from config import userbot, pipabot, logger
+from config import userbot, pipabot, logger, rare_chance
 from tokens import openai_key_list
 
 from service.assets.jailbreak import jailbreak_promt
@@ -11,6 +11,7 @@ from service.assets.jailbreak import jailbreak_promt
 import re
 import asyncio
 import openai
+import random
 import sqlite3 as sl
 
 
@@ -29,17 +30,40 @@ async def new_openaiemoj_i(client, message):
     
     
 
-@userbot.on_message(filters.chat(-1001947907024))
-async def new_openaiemoj_i_(client, message):
+@userbot.on_message(filters.chat(-1001930500992) & filters.sender_chat)
+async def new_openaiemoj_i_(client, message):   
+    # -1001947907024
     # Передаём нейронке сам запрос с текстом пользователя. 
     # Понижение регистра немного уменьшает ошибки при ответе, хз почему
-    user_text = message.text.lower()
+    user_text = message.text.lower() if message.text else message.caption.lower()
 
     # Получаем ответ от нейронки
-    text = await openai_response(message=message, promt=user_text)
+    text = await openai_response(message=message, context='пипа напиши подробно что ты думаешь про новость:\n\n', promt=user_text)
 
     # Отправляем ответ юзеру, предварительно
+    # await userbot.send_message(chat_id=-1001930500992, text=text.upper())
     await message.reply_text(text.upper())
+    
+    
+
+@pipabot.on_message(filters.command('get'), group=2000)
+async def new_openaiemoji21(client, message):
+    
+    for key in openai_key_list:
+        try:
+            logger.info('Проверяю ключ')
+            logger.info(key)
+            openai.api_key = key
+            response = openai.Completion.create(
+                model='text-davinci-003',
+                prompt='Скажи привет',
+                temperature=0, 
+                max_tokens=500
+            )
+            text = response.choices[0].text.upper()
+            logger.info(text)
+        except Exception as e:
+            logger.exception(f'Ошибка: {e}')
 
 
 
@@ -47,11 +71,6 @@ async def new_openaiemoj_i_(client, message):
     filters=(
     filters.regex('[пПpP][иИiI][пПpP][аАыЫуУaA]') & filters.regex('\?') & ~filters.reply
     | filters.regex('[пПpP][иИiI][пПpP][аАыЫуУaA]') & ~filters.reply & ~filters.regex('/') & ~filters.regex('[аА][нН][еЕ][кК][дД][оО][тТ]')  & ~filters.regex('[пП][аА][сС][тТ][аАуУ]')
-#     | filters.regex('[пПpP][иИiI][пПpP][аАыЫуУaA][,\s]? [вВ][оО][пП][рР][оО][сС]') & ~filters.reply
-#     | filters.regex('[пПpP][иИiI][пПpP][аАыЫуУaA][,\s]? [сС][кК][аА][жЖ][иИ]') & ~filters.reply 
-#     | filters.regex('[пПpP][иИiI][пПpP][аАыЫуУaA][,\s]? [пП][рР][иИ][дД][уУ][мМ][аА][йЙ]') & ~filters.reply 
-#     | filters.regex('[пПpP][иИiI][пПpP][аАыЫуУaA][,\s]? [рР][аА][сС][сС][кК][аА][жЖ][иИ]') & ~filters.reply
-#     | filters.regex('[пПpP][иИiI][пПpP][аАыЫуУaA][,\s]? [пП][рР][оО][дД][оО][лЛ][жЖ][иИ]') & ~filters.reply
     ))
 async def openai_answer(client, message):
     '''
@@ -95,7 +114,7 @@ async def openai_reply(client, message):
     user_text = message.text.lower()
     
     # Получаем ответ от нейронки
-    text = await openai_response(message, context=context.lower(), promt=user_text)
+    text = await openai_response(message=message, context=context.lower(), promt=user_text)
 
     # Отправляем ответ юзеру, предварительно
     await message.reply_text(text.upper())
@@ -117,7 +136,7 @@ async def openai_reply_pipa(client, message):
     user_text = message.text.lower()
     
     # Получаем ответ от нейронки
-    text = await openai_response(message, context=context.lower(), promt=user_text)
+    text = await openai_response(message=message, context=context.lower(), promt=user_text)
 
     # Отправляем ответ юзеру, предварительно
     await message.reply_text(text.upper())
@@ -185,11 +204,14 @@ async def openai_response(message, context=None, promt=None, model='text-davinci
     
     # Задаём пипе характер с помощью препромта
     # prepromt = 'Ответь так, как будто ты персонаж PIPA, который немного туповат и пытается пошутить: '
-    prepromt = 'Ответь так, как будто ты персонаж PIPA, который немного туповат, пытается пошутить и любит люзать пизду: '
+    prepromt = 'Ответь так, как будто ты персонаж PIPA, у которого новогоднее настроение, который немного туповат и пытается пошутить: '
+    if random.random() < rare_chance:  
+        prepromt = 'Ответь так, как будто ты персонаж PIPA, который немного туповат, пытается пошутить, любит лансер и делать на нём вррр-вррр: '
     
     # Отправляем в чат «PIPA печатает...»
     if message:
-        await pipabot.send_chat_action(message.chat.id, enums.ChatAction.TYPING)
+        if context and context != 'пипа напиши подробно что ты думаешь про новость:\n\n':
+            await pipabot.send_chat_action(message.chat.id, enums.ChatAction.TYPING)
     
     # Задаём дэфолтный выбор openai ключа из списка
     # Когда будем получать ошибку RateLimitError ключ будет меняться
@@ -214,7 +236,7 @@ async def openai_response(message, context=None, promt=None, model='text-davinci
                 )
                 
                 # Вытаскием текст из респонза
-                model_info = '\n\n||**✍️ Сгенерировано gpt-3.5-turbo**||'
+                model_info = 'gpt-3.5-turbo'
                 text_result = response.choices[0].message.content
                 text = await edit_text(text_result, 'DEVELOPER MODE OUTPUT) ')
                 # text = response.choices[0].message.content
@@ -225,12 +247,12 @@ async def openai_response(message, context=None, promt=None, model='text-davinci
             response = openai.Completion.create(
                 model='text-davinci-003',
                 prompt=prepromt + context + promt,
-                temperature=0, 
+                temperature=0.5, 
                 max_tokens=500
             )
             
             # Вытаскием текст из респонза
-            model_info = '\n\n**✍️ Сгенерировано text-davinci-003**'
+            model_info = 'text-davinci-003'
             text = response.choices[0].text.upper()
             
             # Иногда text-davinci-003 отвечает пустым текстовым полем
@@ -244,7 +266,7 @@ async def openai_response(message, context=None, promt=None, model='text-davinci
                 )
                 
                 # Вытаскием текст из респонза
-                model_info = '\n\n||**✍️ Сгенерировано text-davinci-003**||'
+                model_info = 'text-davinci-003'
                 text = response.choices[0].text.upper()
             
             # Если и с контекстом нейросеть отдаёт пустой результат, то
@@ -258,7 +280,7 @@ async def openai_response(message, context=None, promt=None, model='text-davinci
                 )
                 
                 # Вытаскием текст из респонза
-                model_info = '\n\n||**✍️ Сгенерировано gpt-3.5-turbo**||'
+                model_info = 'gpt-3.5-turbo'
                 text = response.choices[0].message.content
                 
             
@@ -269,17 +291,29 @@ async def openai_response(message, context=None, promt=None, model='text-davinci
             # Если все ключи перебраны, то ждём 30 секунд и начинаем сначала
             if key_choice > 4:
                 if message:
-                    await asyncio.sleep(10)
-                    await pipabot.send_chat_action(message.chat.id, enums.ChatAction.TYPING)
-                    await asyncio.sleep(10)
-                    await pipabot.send_chat_action(message.chat.id, enums.ChatAction.TYPING)
-                    await asyncio.sleep(10)
-                    await pipabot.send_chat_action(message.chat.id, enums.ChatAction.TYPING)
+                    if context and context != 'пипа напиши подробно что ты думаешь про новость:\n\n':
+                        await asyncio.sleep(10)
+                        await pipabot.send_chat_action(message.chat.id, enums.ChatAction.TYPING)
+                        await asyncio.sleep(10)
+                        await pipabot.send_chat_action(message.chat.id, enums.ChatAction.TYPING)
+                        await asyncio.sleep(10)
+                        await pipabot.send_chat_action(message.chat.id, enums.ChatAction.TYPING)
                 key_choice = 0
-                
-    # Иногда нейросеть дописывает к запросу знаки, непонятно зачем. Убираем
-    if text[0] and text[0] == '?' or text[0] and text[0] == '!':
-        text = text[3:]
+           
+    try:     
+        # Иногда нейросеть дописывает к запросу знаки, непонятно зачем. Убираем
+        if text[0] and text[0] == '?' or text[0] and text[0] == '!':
+            text = text[3:]
+    except Exception as e:
+        logger.exception(f'Ошибка: {e}')
+        
+    try:
+        logger.info(f'Сообщение юзера {message.from_user.first_name} из чата {message.chat.title}:')
+        logger.info(message.text)
+        logger.info(f'Ответ пипы с помощью {model_info}:')
+        logger.info(text)
+    except:
+        pass
     
     return text # + model_info
 
