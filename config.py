@@ -1,7 +1,9 @@
 from tokens import api_id, api_hash, bot_token, phone_number
 from pyrogram import Client
-import uvloop
+from telegram.ext import Application
 
+# import uvloop
+# uvloop.install()
 
 # pymorphy2 используется для склонений при поиске шутеек
 
@@ -20,11 +22,22 @@ logging.basicConfig(
     filename = f'./service/logs/pipa_{datetime.today().strftime("%m-%d")}.log',
     encoding='utf-8'
     )
+logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 
 # Создаём объекты сессий
-uvloop.install()
+async def post_init(context):
+    logger.info('init')
+    await userbot.start()
+    
+async def post_stop(context):
+    logger.info('stop')
+    await userbot.stop()
+
+# Запускаем бота через BotAPI
+application = Application.builder().token(bot_token).post_init(post_init).post_stop(post_stop).build()
+
 # Основной бот
 pipabot = Client(
     name='pipabot', 
@@ -40,8 +53,7 @@ userbot = Client(
     api_id=api_id, 
     api_hash=api_hash, 
     phone_number=phone_number, 
-    workdir='./service/sessions/',
-    # no_updates=True
+    workdir='./service/sessions/'
 )
 
 

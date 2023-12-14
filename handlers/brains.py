@@ -1,9 +1,10 @@
 # Хэндлер предназначен для ответов бота с помощью нейросети
 
-from pyrogram import filters, enums
-from pyrogram.errors import exceptions
-from pyrogram.types import InlineQueryResultArticle, InputTextMessageContent
-from config import userbot, pipabot, logger, rare_chance
+from telegram import constants
+from telegram.ext import filters, ApplicationHandlerStop
+
+from config import userbot, logger, rare_chance
+from utils.decorator import on_message, on_command
 from tokens import openai_key_list
 
 from service.assets.jailbreak import jailbreak_promt
@@ -16,29 +17,32 @@ import sqlite3 as sl
 
 
 
-@userbot.on_message(filters.private)
-async def new_openaiemoj_i(client, message):
-    # Передаём нейронке сам запрос с текстом пользователя. 
-    # Понижение регистра немного уменьшает ошибки при ответе, хз почему
-    user_text = message.text.lower()
+# @on_message(filters.ChatType.PRIVATE)
+# async def new_openaiemoj_i(update, context):
+#     message = update.message
+    
+#     # Передаём нейронке сам запрос с текстом пользователя. 
+#     # Понижение регистра немного уменьшает ошибки при ответе, хз почему
+#     user_text = message.text.lower()
 
-    # Получаем ответ от нейронки
-    text = await openai_response(message=message, promt=user_text)
+#     # Получаем ответ от нейронки
+#     text = await openai_response(context=context, message=message, promt=user_text)
 
-    # Отправляем ответ юзеру, предварительно
-    await message.reply_text(text.upper())
+#     # Отправляем ответ юзеру, предварительно
+#     await message.reply_text(text.upper())
     
     
 
-@userbot.on_message(filters.chat(-1001930500992) & filters.sender_chat)
-async def new_openaiemoj_i_(client, message):   
-    # -1001947907024
+@on_message(filters.SenderChat(-1001930500992))
+async def new_openaiemoj_i_(update, context):   
+    message = update.message
+    
     # Передаём нейронке сам запрос с текстом пользователя. 
     # Понижение регистра немного уменьшает ошибки при ответе, хз почему
     user_text = message.text.lower() if message.text else message.caption.lower()
 
     # Получаем ответ от нейронки
-    text = await openai_response(message=message, context='пипа напиши подробно что ты думаешь про новость:\n\n', promt=user_text)
+    text = await openai_response(context=context, message=message, context_promt='пипа напиши подробно что ты думаешь про новость:\n\n', promt=user_text)
 
     # Отправляем ответ юзеру, предварительно
     # await userbot.send_message(chat_id=-1001930500992, text=text.upper())
@@ -46,8 +50,8 @@ async def new_openaiemoj_i_(client, message):
     
     
 
-@pipabot.on_message(filters.command('get'), group=2000)
-async def new_openaiemoji21(client, message):
+@on_command('get', group=2000)
+async def new_openaiemoji21(update, context):
     
     for key in openai_key_list:
         try:
@@ -67,18 +71,19 @@ async def new_openaiemoji21(client, message):
 
 
 
-@pipabot.on_message(
+@on_message(
     filters=(
-    filters.regex('[пПpP][иИiI][пПpP][аАыЫуУaA]') & filters.regex('\?') & ~filters.reply
-    | filters.regex('[пПpP][иИiI][пПpP][аАыЫуУaA]') & ~filters.reply & ~filters.regex('/') & ~filters.regex('[аА][нН][еЕ][кК][дД][оО][тТ]')  & ~filters.regex('[пП][аА][сС][тТ][аАуУ]')
+    filters.Regex('[пПpP][иИiI][пПpP][аАыЫуУaA]') & filters.Regex('\?') & ~filters.REPLY
+    | filters.Regex('[пПpP][иИiI][пПpP][аАыЫуУaA]') & ~filters.REPLY & ~filters.Regex('/') & ~filters.Regex('[аА][нН][еЕ][кК][дД][оО][тТ]')  & ~filters.Regex('[пП][аА][сС][тТ][аАуУ]')
     ))
-async def openai_answer(client, message):
+async def openai_answer(update, context):
     '''
     Отвечает на вопрос с помощью нейронки
     
     Принимает запросы вида: 
         — пипа <запрос>\n
     '''
+    message = update.message
     
     if len(message.text) < 10:
         return
@@ -88,44 +93,46 @@ async def openai_answer(client, message):
     user_text = message.text.lower()
 
     # Получаем ответ от нейронки
-    text = await openai_response(message=message, promt=user_text)
+    text = await openai_response(context=context, message=message, promt=user_text)
 
     # Отправляем ответ юзеру, предварительно
     await message.reply_text(text.upper())
     
     # Останавливаем отслеживание сообщения другими хендлерами
-    message.stop_propagation()
+    raise ApplicationHandlerStop
     
 
-@pipabot.on_message(filters.regex('\?') & filters.reply & ~filters.regex('[пПpP][иИiI][пПpP][аАыЫуУaA]') | filters.regex('[пП]родолжи') & filters.reply)
-async def openai_reply(client, message):
+@on_message(filters.Regex('\?') & filters.REPLY & ~filters.Regex('[пПpP][иИiI][пПpP][аАыЫуУaA]') | filters.Regex('[пП]родолжи') & filters.REPLY)
+async def openai_reply(update, context):
     '''Отвечает на вопрос с помощью нейронки, если это реплай боту. Учитывает контекст сообщения в реплае'''
+    message = update.message
 
     # Игнорируем сообщение, если реплай сделан не боту
-    if message.reply_to_message.from_user != await pipabot.get_me():
+    if message.reply_to_message.from_user.id != (await context.bot.get_me()).id:
         return
     
     # Передаём нейронке контекст из предыдущего сообщения
     # Чтобы уменьшить ошибки при ответе убираем все строки из сообщения
-    context = re.sub(r'\n', ' ', message.reply_to_message.text or message.reply_to_message.caption)
+    context_promt = re.sub(r'\n', ' ', message.reply_to_message.text or message.reply_to_message.caption)
     
     # Передаём нейронке сам запрос с текстом пользователя
     # Понижение регистра немного уменьшает ошибки при ответе
     user_text = message.text.lower()
     
     # Получаем ответ от нейронки
-    text = await openai_response(message=message, context=context.lower(), promt=user_text)
+    text = await openai_response(context=context, message=message, context_promt=context_promt.lower(), promt=user_text)
 
     # Отправляем ответ юзеру, предварительно
     await message.reply_text(text.upper())
     
     # Останавливаем отслеживание сообщения другими хендлерами
-    message.stop_propagation()
+    raise ApplicationHandlerStop
     
     
-@pipabot.on_message(filters.regex('[пПpP][иИiI][пПpP][аАыЫуУaA]') & filters.regex('\?') & filters.reply)
-async def openai_reply_pipa(client, message):
+@on_message(filters.Regex('[пПpP][иИiI][пПpP][аАыЫуУaA]') & filters.Regex('\?') & filters.REPLY)
+async def openai_reply_pipa(update, context):
     '''Отвечает на вопрос с помощью нейронки, если это реплай с упоминанием Пипы. Учитывает контекст сообщения в реплае'''
+    message = update.message
     
     # Передаём нейронке контекст из предыдущего сообщения
     # Чтобы уменьшить ошибки при ответе убираем все строки из сообщения
@@ -136,70 +143,70 @@ async def openai_reply_pipa(client, message):
     user_text = message.text.lower()
     
     # Получаем ответ от нейронки
-    text = await openai_response(message=message, context=context.lower(), promt=user_text)
+    text = await openai_response(context=context, message=message, context_promt=context.lower(), promt=user_text)
 
     # Отправляем ответ юзеру, предварительно
     await message.reply_text(text.upper())
     
     # Останавливаем отслеживание сообщения другими хендлерами
-    message.stop_propagation()
+    raise ApplicationHandlerStop
     
     
-@pipabot.on_inline_query()
-async def answer(client, inline_query):
-    lock = asyncio.Lock()
-    async with lock:
-        # await asyncio.sleep(5)
-        # logger.info(inline_query)
-        # await asyncio.sleep(5)
-        # Передаём нейронке сам запрос с текстом пользователя
-        # Понижение регистра немного уменьшает ошибки при ответе
-        user_id = inline_query.from_user.id
-        user_text = inline_query.query.lower()
+# @pipabot.on_inline_query()
+# async def answer(client, inline_query):
+#     lock = asyncio.Lock()
+#     async with lock:
+#         # await asyncio.sleep(5)
+#         # logger.info(inline_query)
+#         # await asyncio.sleep(5)
+#         # Передаём нейронке сам запрос с текстом пользователя
+#         # Понижение регистра немного уменьшает ошибки при ответе
+#         user_id = inline_query.from_user.id
+#         user_text = inline_query.query.lower()
         
-        # logger.info(user_text)
-        if len(user_text) < 5:
-            return
+#         # logger.info(user_text)
+#         if len(user_text) < 5:
+#             return
         
-        conn = sl.connect('./service/pipa.db')
-        cur = conn.cursor()
+#         conn = sl.connect('./service/pipa.db')
+#         cur = conn.cursor()
         
-        # Попытка вставить строку, обновить, если ключ уже существует
-        cur.execute('''INSERT INTO cache (user_id, text)
-                    VALUES (?, ?)
-                    ON CONFLICT(user_id) DO UPDATE SET
-                    text = ?''',
-                (user_id, user_text, user_text))
-        conn.commit()
+#         # Попытка вставить строку, обновить, если ключ уже существует
+#         cur.execute('''INSERT INTO cache (user_id, text)
+#                     VALUES (?, ?)
+#                     ON CONFLICT(user_id) DO UPDATE SET
+#                     text = ?''',
+#                 (user_id, user_text, user_text))
+#         conn.commit()
         
-        await asyncio.sleep(3)
+#         await asyncio.sleep(3)
         
-        cur.execute("""SELECT text FROM cache WHERE user_id = ? """,(user_id,))
-        result, = cur.fetchone()
-        logger.info(result)
-        logger.info(user_text)
+#         cur.execute("""SELECT text FROM cache WHERE user_id = ? """,(user_id,))
+#         result, = cur.fetchone()
+#         logger.info(result)
+#         logger.info(user_text)
         
-        conn.close()
+#         conn.close()
         
-        if user_text == result:
+#         if user_text == result:
         
-            response = await openai_response(message=None, promt=user_text)
+#             response = await openai_response(message=None, promt=user_text)
             
-            await inline_query.answer(
-                results=[
-                    InlineQueryResultArticle(
-                        title="Пипафикация",
-                        input_message_content=InputTextMessageContent(
-                            response
-                        ),
-                        description="Ты ответишь: " + response,
-                    ),
-                ],
-                cache_time=1
-            )
+#             await inline_query.answer(
+#                 results=[
+#                     InlineQueryResultArticle(
+#                         title="Пипафикация",
+#                         input_message_content=InputTextMessageContent(
+#                             response
+#                         ),
+#                         description="Ты ответишь: " + response,
+#                     ),
+#                 ],
+#                 cache_time=1
+#             )
     
     
-async def openai_response(message, context=None, promt=None, model='text-davinci-003'):
+async def openai_response(context, message, context_promt=None, promt=None, model='text-davinci-003'):
     '''Отправляет запрос в OpenAI'''
     
     # Задаём пипе характер с помощью препромта
@@ -208,10 +215,7 @@ async def openai_response(message, context=None, promt=None, model='text-davinci
     if random.random() < rare_chance:  
         prepromt = 'Ответь так, как будто ты персонаж PIPA, который немного туповат, пытается пошутить, любит лансер и делать на нём вррр-вррр: '
     
-    # Отправляем в чат «PIPA печатает...»
-    if message:
-        if context and context != 'пипа напиши подробно что ты думаешь про новость:\n\n':
-            await pipabot.send_chat_action(message.chat.id, enums.ChatAction.TYPING)
+    await context.bot.send_chat_action(chat_id=message.chat.id, action=constants.ChatAction.TYPING)
     
     # Задаём дэфолтный выбор openai ключа из списка
     # Когда будем получать ошибку RateLimitError ключ будет меняться
@@ -225,7 +229,7 @@ async def openai_response(message, context=None, promt=None, model='text-davinci
         try:
             openai.api_key = openai_key_list[key_choice]
             
-            context = context if context else ''
+            context_promt = context_promt if context_promt else ''
             
             if model == 'gpt-3.5-turbo':
                 response = await openai.ChatCompletion.acreate(
@@ -236,23 +240,20 @@ async def openai_response(message, context=None, promt=None, model='text-davinci
                 )
                 
                 # Вытаскием текст из респонза
-                model_info = 'gpt-3.5-turbo'
                 text_result = response.choices[0].message.content
                 text = await edit_text(text_result, 'DEVELOPER MODE OUTPUT) ')
-                # text = response.choices[0].message.content
                 continue
             
             # Пробуем получить ответ от openai
             # Модель text-davinci-003 лучше всего подходит для тупых ответов PIP'ы
             response = openai.Completion.create(
                 model='text-davinci-003',
-                prompt=prepromt + context + promt,
+                prompt=prepromt + context_promt + promt,
                 temperature=0.5, 
                 max_tokens=500
             )
             
             # Вытаскием текст из респонза
-            model_info = 'text-davinci-003'
             text = response.choices[0].text.upper()
             
             # Иногда text-davinci-003 отвечает пустым текстовым полем
@@ -266,7 +267,6 @@ async def openai_response(message, context=None, promt=None, model='text-davinci
                 )
                 
                 # Вытаскием текст из респонза
-                model_info = 'text-davinci-003'
                 text = response.choices[0].text.upper()
             
             # Если и с контекстом нейросеть отдаёт пустой результат, то
@@ -275,12 +275,11 @@ async def openai_response(message, context=None, promt=None, model='text-davinci
                 response = await openai.ChatCompletion.acreate(
                     model='gpt-3.5-turbo',
                     temperature=0, 
-                    messages=[{ 'role':'user','content' : prepromt + context + promt}],
+                    messages=[{ 'role':'user','content' : prepromt + context_promt + promt}],
                     max_tokens=500
                 )
                 
                 # Вытаскием текст из респонза
-                model_info = 'gpt-3.5-turbo'
                 text = response.choices[0].message.content
                 
             
@@ -290,14 +289,12 @@ async def openai_response(message, context=None, promt=None, model='text-davinci
             
             # Если все ключи перебраны, то ждём 30 секунд и начинаем сначала
             if key_choice > 4:
-                if message:
-                    if context and context != 'пипа напиши подробно что ты думаешь про новость:\n\n':
-                        await asyncio.sleep(10)
-                        await pipabot.send_chat_action(message.chat.id, enums.ChatAction.TYPING)
-                        await asyncio.sleep(10)
-                        await pipabot.send_chat_action(message.chat.id, enums.ChatAction.TYPING)
-                        await asyncio.sleep(10)
-                        await pipabot.send_chat_action(message.chat.id, enums.ChatAction.TYPING)
+                await asyncio.sleep(10)
+                await context.bot.send_chat_action(chat_id=message.chat.id, action=constants.ChatAction.TYPING)
+                await asyncio.sleep(10)
+                await context.bot.send_chat_action(chat_id=message.chat.id, action=constants.ChatAction.TYPING)
+                await asyncio.sleep(10)
+                await context.bot.send_chat_action(chat_id=message.chat.id, action=constants.ChatAction.TYPING)
                 key_choice = 0
            
     try:     
@@ -310,12 +307,12 @@ async def openai_response(message, context=None, promt=None, model='text-davinci
     try:
         logger.info(f'Сообщение юзера {message.from_user.first_name} из чата {message.chat.title}:')
         logger.info(message.text)
-        logger.info(f'Ответ пипы с помощью {model_info}:')
+        logger.info(f'Ответ пипы:')
         logger.info(text)
     except:
         pass
     
-    return text # + model_info
+    return text
 
 
 async def edit_text(text, key_word):

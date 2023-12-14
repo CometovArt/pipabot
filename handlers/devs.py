@@ -1,26 +1,31 @@
 # Хэндлер предназначен для ответов отладки, или тех, что находятся в стадии теста
 
-from pyrogram import filters
-from config import pipabot, logger
+from telegram.ext import filters, ApplicationHandlerStop
+from config import logger
+from utils.decorator import on_message, on_command
 
 import sqlite3 as sl
 
     
 
-@pipabot.on_message(filters.command('logger'), group=1)
-async def dev_logger(client, message):
+@on_command('logger', group=1)
+async def dev_logger(update, context):
     '''Логгируем сообщение.'''
+    message = update.message
     logger.info(message)
     
     
-@pipabot.on_message(filters.command('download'))
-async def dev_download(client, message):
+@on_command('download')
+async def dev_download(update, context):
     '''Скачиваем медиа.'''
+    message = update.message
+    
+    logger.info(update)
     
     media = None
     
     if message.reply_to_message.photo:
-        media = message.reply_to_message.photo.file_id
+        media = message.reply_to_message.photo[3].file_id
     elif message.reply_to_message.video:
         media = message.reply_to_message.video.file_id
     elif message.reply_to_message.audio:
@@ -31,15 +36,17 @@ async def dev_download(client, message):
         media = message.reply_to_message.animation.file_id
         
     if media:
-        await pipabot.download_media(media)
+        new_file = await context.bot.get_file(media)
+        await new_file.download_to_drive()
         
     # Останавливаем отслеживание сообщения другими хендлерами
-    message.stop_propagation()
+    raise ApplicationHandlerStop
     
     
-@pipabot.on_message(filters.command('info'))
-async def info(client, message):
+@on_command('info')
+async def info(update, context):
     '''Отправляет информацию о боте'''
+    message = update.message
     
     text = (
         f'**PIPA**\n\n'
@@ -52,9 +59,10 @@ async def info(client, message):
     await message.reply_text(text)
     
 
-@pipabot.on_message(filters.command('commands'))
-async def commands(client, message):
+@on_command('commands')
+async def commands(update, context):
     '''Отправляет информацию о командах'''
+    message = update.message
     
     text = (
         f'Список доступных команд у PIPA\n\n'
@@ -72,9 +80,10 @@ async def commands(client, message):
     await message.reply_text(text)
     
     
-@pipabot.on_message(filters.command('triggers'))
-async def triggers(client, message):
+@on_command('triggers')
+async def triggers(update, context):
     '''Отправляет информацию о триггерах'''
+    message = update.message
     
     text = (
         f'Список слов триггеров, на которые реагирует PIPA\n\n'
@@ -115,8 +124,8 @@ async def triggers(client, message):
     await message.reply_text(text)
     
     
-@pipabot.on_message(filters.command('dark'))
-async def dev_dark_side(client, message):
+@on_command('dark')
+async def dev_dark_side(update, context):
     '''Заготовка для перевода пипы на тёмную сторону'''
     
     conn = sl.connect('./service/pipa.db')
@@ -136,4 +145,4 @@ async def dev_dark_side(client, message):
     conn.close()
     
     # Останавливаем отслеживание сообщения другими хендлерами
-    message.stop_propagation()
+    raise ApplicationHandlerStop

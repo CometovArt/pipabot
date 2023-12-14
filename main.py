@@ -1,8 +1,7 @@
-from pyrogram import compose, filters
-import asyncio
-import random
+from telegram import Update
+from telegram.ext import filters
 
-from config import userbot, pipabot, logger
+from config import userbot, application, logger
 
 # Запускаем все хендлеры
 import handlers.brains
@@ -11,7 +10,19 @@ import handlers.jokes
 import handlers.simples
 import handlers.specials
 
+import random
 
+from utils.decorator import on_message
+
+
+
+@on_message(filters.Regex('привет'))
+async def test_app(update, context):
+    logger.info(update)
+    message = update.message
+    await message.reply_text("Hello world!")
+    # await context.bot.send_message(chat_id=438257687, text="Hello world!")
+    
 
 @userbot.on_message()
 async def new_openaiemoji(client, message):
@@ -19,14 +30,13 @@ async def new_openaiemoji(client, message):
         # texts = ['❤️']
         # text = random.choice(texts)
         await userbot.send_reaction(chat_id=message.chat.id, message_id=message.id, emoji='❤️')
-
+    
 
 # Стартуем сессии ботов
-async def main():
-    await compose([userbot, pipabot])
+def main():
+    application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 
 
-if __name__ == '__main__':
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(main())
+if __name__ == "__main__":
+    main()
